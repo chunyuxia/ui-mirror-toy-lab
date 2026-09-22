@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive toy demo of passive UI mirroring: a tiny game, a sniffer that snapshots its UI tree, and a generic mirror that redraws it.">
+<title>UI Mirror Toy Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Lobster&family=Fredoka:wght@500;600&display=swap">
+<style>
+:root{
+  --paper:#eef1f4; --sheet:#ffffff; --ink:#19212d; --muted:#5b6677; --rule:#d9dfe6; --soft:#f5f7f9;
+  --accent:#3552c9; --accent-soft:#e6ebfb; --good:#2b8553; --good-soft:#e2f3e9;
+  --warn:#b97b0c; --warn-soft:#fbf0d9; --bad:#bb4136; --bad-soft:#f8e2df; --code:#f3f5f8;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --sans:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#10151b; --sheet:#171e26; --ink:#e3e8ee; --muted:#98a4b3; --rule:#2a3440; --soft:#1d252f;
+  --accent:#8ea2f2; --accent-soft:#232c4d; --good:#6cc491; --good-soft:#18301f;
+  --warn:#e6b35b; --warn-soft:#382a12; --bad:#ee8b80; --bad-soft:#3a1d1a; --code:#1c242d; } }
+:root[data-theme="dark"]{
+  --paper:#10151b; --sheet:#171e26; --ink:#e3e8ee; --muted:#98a4b3; --rule:#2a3440; --soft:#1d252f;
+  --accent:#8ea2f2; --accent-soft:#232c4d; --good:#6cc491; --good-soft:#18301f;
+  --warn:#e6b35b; --warn-soft:#382a12; --bad:#ee8b80; --bad-soft:#3a1d1a; --code:#1c242d; }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font:15px/1.55 var(--sans);padding-inline:16px;padding-block:24px 56px}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font:700 clamp(26px,4vw,36px)/1.1 var(--display);margin:0 0 8px;letter-spacing:-.01em}
+h2{font:600 20px/1.2 var(--display);margin:0 0 6px}
+h3{font:600 15px/1.3 var(--sans);margin:0 0 6px}
+.intro{max-width:78ch;color:var(--muted);margin:0 0 18px}
+.intro b{color:var(--ink)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--rule);background:var(--sheet);border-radius:6px;padding:6px 11px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.stage-row{display:grid;grid-template-columns:1fr 1.05fr 1fr;gap:14px;align-items:start}
+@media (max-width:1000px){.stage-row{grid-template-columns:1fr}}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:12px;transition:box-shadow .25s,border-color .25s;min-width:0}
+.panel.spot{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.tag{font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.role{font:600 11px/1.6 var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:0 7px;border-radius:999px}
+.role.src{background:#fdebd6;color:#9a5a10}
+.role.snf{background:var(--accent-soft);color:var(--accent)}
+.role.mir{background:var(--good-soft);color:var(--good)}
+:root[data-theme="dark"] .role.src{background:#3a2a17;color:#f0bd7c}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .role.src{background:#3a2a17;color:#f0bd7c} }
+.screen{position:relative;width:100%;aspect-ratio:320/220;border-radius:8px;overflow:hidden;background:#1d2440;user-select:none}
+.mirror-screen{aspect-ratio:4/3;background:#0d1016}
+.screen canvas.world{position:absolute;inset:0;width:100%;height:100%}
+.stage{position:absolute;left:0;top:0;width:320px;height:220px;transform-origin:0 0}
+.node{position:absolute;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;line-height:1.05}
+.node.text{justify-content:flex-start;background:transparent}
+.node.center{justify-content:center}
+.node img{width:100%;height:100%;display:block}
+.fx-glow{animation:glow 1.3s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 4px 1px rgba(255,210,90,.55)}50%{box-shadow:0 0 14px 5px rgba(255,210,90,.95)}}
+@media (prefers-reduced-motion: reduce){.fx-glow{animation:none;box-shadow:0 0 10px 3px rgba(255,210,90,.8)}}
+.diag-partial{outline:1px dashed #f0b429;outline-offset:-1px}
+.diag-partial::after{content:"";position:absolute;right:1px;top:1px;width:5px;height:5px;border-radius:50%;background:#f0b429}
+.diag-missing{outline:1px dashed #ff6b5e;outline-offset:-1px}
+.placeholder{background:repeating-linear-gradient(45deg,rgba(255,107,94,.25) 0 3px,transparent 3px 7px)!important;outline:1px solid rgba(255,107,94,.8);outline-offset:-1px;color:#ffb3ab;font:600 5px/1 var(--sans)}
+.letterbox-note{position:absolute;left:6px;bottom:4px;font:500 10px/1 var(--sans);color:#7d8799;pointer-events:none}
+.world-note{position:absolute;right:6px;top:5px;font:500 10px/1.2 var(--sans);color:#8a93a4;text-align:right;pointer-events:none;max-width:60%}
+.closed{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,12,18,.82);color:#cfd6e2;font:600 14px/1.3 var(--sans);text-align:center;padding:10px}
+.statline{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.statline b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.controls label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.json{font:11.5px/1.5 var(--mono);background:var(--code);border-radius:6px;padding:8px 10px;height:258px;overflow:auto;white-space:pre}
+.json .chg{background:var(--warn-soft);color:var(--ink)}
+.json .hid{color:var(--muted)}
+.json .hdr{color:var(--accent)}
+.log{font:11.5px/1.5 var(--mono);background:var(--code);border-radius:6px;padding:6px 10px;height:64px;overflow:auto;margin-top:8px}
+.gate{display:inline-flex;align-items:center;gap:6px;font:600 12px/1.6 var(--sans);padding:0 8px;border-radius:999px}
+.gate.pass{background:var(--good-soft);color:var(--good)} .gate.fail{background:var(--bad-soft);color:var(--bad)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.metric{background:var(--soft);border-radius:6px;padding:6px 8px}
+.metric .k{font-size:11px;color:var(--muted);letter-spacing:.03em}
+.metric .v{font:600 16px/1.2 var(--sans);font-variant-numeric:tabular-nums}
+.metric .v small{font-size:11px;color:var(--muted);font-weight:500}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:26px 0 0;border-bottom:1px solid var(--rule)}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:10px 14px;color:var(--muted);font-weight:500}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabpanel{background:var(--sheet);border:1px solid var(--rule);border-top:0;border-radius:0 0 10px 10px;padding:18px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:820px){.two{grid-template-columns:1fr}}
+.step-card{border:1px solid var(--rule);border-radius:8px;padding:14px 16px;background:var(--soft)}
+.step-num{font:600 12px/1 var(--sans);color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+.step-card h3{font:600 18px/1.3 var(--display);margin:6px 0 8px}
+.step-card p{margin:0 0 8px;max-width:70ch}
+.dots{display:flex;gap:6px;margin:10px 0}
+.dots span{width:9px;height:9px;border-radius:50%;background:var(--rule)}
+.dots span.on{background:var(--accent)}
+.table-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+th{background:var(--soft);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+td.n{font-variant-numeric:tabular-nums}
+.seen{color:var(--good);font-weight:600} .unseen{color:var(--muted)}
+.bar{height:10px;border-radius:999px;background:var(--soft);overflow:hidden;margin:6px 0 2px}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+@media (max-width:820px){.levels{grid-template-columns:1fr}}
+.level{border:1px solid var(--rule);border-radius:8px;padding:12px}
+.level .v{font:600 22px/1.2 var(--display)}
+.pill{display:inline-block;font:600 10.5px/1.6 var(--sans);letter-spacing:.05em;text-transform:uppercase;padding:0 7px;border-radius:999px}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.toggles{display:grid;gap:8px}
+.toggle{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+.toggle input{margin-top:3px}
+.toggle b{font-weight:600}
+.toggle span{grid-column:2;font-size:13px;color:var(--muted)}
+.toggle.bug{border-color:var(--bad-soft)}
+.note{font-size:13px;color:var(--muted);max-width:75ch}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:14px}
+.chart{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;margin:6px 0}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.cause{border:1px solid var(--rule);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.cause h3{margin:0 0 4px}
+.cause p{margin:0;font-size:13.5px;color:var(--muted)}
+footer{margin-top:28px;font-size:12.5px;color:var(--muted);max-width:90ch}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<h1>UI Mirror Toy Lab</h1>
+<p class="intro">A miniature bakery game stands in for a real Unity game. <b>Play it on the left.</b> The <b>sniffer</b> in the middle reads its interface four times a second and writes it down as data. The <b>mirror</b> on the right redraws the interface using only that data — it never sees the game itself. The tabs below explain completeness, why the mirror still looks different, how the auto-explorer works, and the whole pipeline step by step.</p>
+
+<div class="stage-row">
+  <section class="panel" id="p-src" aria-label="Source game">
+    <div class="panel-head"><h2>The game</h2><span class="role src">source</span></div>
+    <div class="screen" id="srcScreen" tabindex="0" aria-label="Game screen. Click buttons to play.">
+      <canvas class="world" id="world" width="640" height="440"></canvas>
+      <div class="stage" id="srcStage"></div>
+      <div class="closed" id="closedCover" hidden>Game closed.<br>The recording can still be replayed in the mirror.</div>
+    </div>
+    <div class="statline"><span>screen <b id="s-screen">menu</b></span><span>score <b id="s-score">0</b></span><span>coins <b id="s-coins">0</b></span><span>UI nodes <b id="s-nodes">0</b></span></div>
+    <div class="controls">
+      <button id="btnClose">Close the game</button>
+      <button id="btnReset">Restart game</button>
+    </div>
+    <p class="note" style="margin:8px 0 0">The moving hills are the "3D world". They are drawn by the game, but they are not part of its UI tree.</p>
+  </section>
+
+  <section class="panel" id="p-snf" aria-label="Sniffer output">
+    <div class="panel-head"><h2>The sniffer</h2><span class="role snf">reads only</span></div>
+    <div class="statline" style="margin:0 0 6px"><span>snapshot <b id="n-id">0</b></span><span>size <b id="n-bytes">0</b></span><span>lines changed <b id="n-chg">0</b></span><span>hidden nodes captured <b id="n-hid">0</b></span></div>
+    <div class="json" id="json" aria-label="Latest full snapshot"></div>
+    <div class="controls"><label for="rate">sample rate <input type="range" id="rate" min="1" max="15" value="4"> <b id="rateV">4 Hz</b></label></div>
+    <div class="log" id="assetLog" aria-label="Asset messages"></div>
+  </section>
+
+  <section class="panel" id="p-mir" aria-label="Mirror client">
+    <div class="panel-head"><h2>The mirror</h2><span class="role mir" id="mirMode">live</span></div>
+    <div class="screen mirror-screen" id="mirScreen">
+      <canvas class="world" id="mirWorld" width="640" height="480" hidden></canvas>
+      <div class="stage" id="mirStage"></div>
+      <div class="world-note" id="worldNote">world rendering not mirrored<br>(outside the UI tree, by design)</div>
+      <div class="letterbox-note">letterbox — the mirror window has a different shape</div>
+    </div>
+    <div class="statline"><span id="gate" class="gate pass">geometry gate: pass</span><span>p95 edge error <b id="m-err">0.00%</b></span><span>diff <b id="m-diff">—</b></span></div>
+    <div class="metrics">
+      <div class="metric"><div class="k">nodes captured</div><div class="v" id="m-struct">—</div></div>
+      <div class="metric"><div class="k">fully redrawn</div><div class="v" id="m-full">—</div></div>
+      <div class="metric"><div class="k">partial</div><div class="v" id="m-part">—</div></div>
+      <div class="metric"><div class="k">placeholder only</div><div class="v" id="m-ph">—</div></div>
+      <div class="metric"><div class="k">images missing</div><div class="v" id="m-miss">—</div></div>
+      <div class="metric"><div class="k">unsupported items</div><div class="v" id="m-uns">—</div></div>
+    </div>
+    <div class="controls">
+      <label><input type="checkbox" id="diag" checked> show diagnostic markers</label>
+      <button id="btnReplay">Replay recording</button>
+    </div>
+    <div id="replayBox" hidden>
+      <div class="controls"><label for="scrub">recorded snapshot <input type="range" id="scrub" min="0" max="0" value="0"> <b id="scrubV">0</b></label></div>
+      <p class="note" id="replayCmp" style="margin:4px 0 0"></p>
+    </div>
+  </section>
+</div>
+
+<div class="tabs" role="tablist" aria-label="Explanations">
+  <button role="tab" id="t-walk" aria-selected="true" aria-controls="tp-walk">How it works</button>
+  <button role="tab" id="t-comp" aria-selected="false" aria-controls="tp-comp">Completeness</button>
+  <button role="tab" id="t-fid" aria-selected="false" aria-controls="tp-fid">Why it looks different</button>
+  <button role="tab" id="t-exp" aria-selected="false" aria-controls="tp-exp">Auto-explorer</button>
+</div>
+
+<section class="tabpanel" role="tabpanel" id="tp-walk" aria-labelledby="t-walk">
+  <div class="dots" id="dots"></div>
+  <div class="step-card" id="stepCard"></div>
+  <div class="controls"><button id="prevStep">Back</button><button class="primary" id="nextStep">Next step</button></div>
+</section>
+
+<section class="tabpanel" role="tabpanel" id="tp-comp" aria-labelledby="t-comp" hidden>
+  <div class="levels">
+    <div class="level"><span class="pill good">guaranteed</span><h3 style="margin-top:6px">1 · Capture</h3><div class="v" id="c-cap">—</div><p class="note">Every node in the game's UI tree appears in the snapshot — including hidden panels.</p></div>
+    <div class="level"><span class="pill good">guaranteed</span><h3 style="margin-top:6px">2 · Accounting</h3><div class="v" id="c-acc">—</div><p class="note">Everything the mirror cannot draw is listed by name, never silently dropped.</p></div>
+    <div class="level"><span class="pill bad">not guaranteed</span><h3 style="margin-top:6px">3 · States visited</h3><div class="v" id="c-state">—</div><p class="note">Depends on how much of the game someone — or an explorer — actually played.</p></div>
+  </div>
+  <div class="two">
+    <div>
+      <h3>Static analysis vs what actually appeared</h3>
+      <p class="note">The left columns are what reading the game's files can tell you. The right columns fill in only while you play.</p>
+      <div class="bar" aria-hidden="true"><i id="covBar" style="width:0%"></i></div>
+      <p class="note" id="covText" style="margin:0 0 8px"></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>UI template</th><th>Static analysis knows</th><th>Seen at runtime</th><th>Runtime detail</th></tr></thead>
+        <tbody id="compBody"></tbody>
+      </table></div>
+    </div>
+    <div>
+      <h3>Why static analysis alone is not enough</h3>
+      <div class="callout">Open the <b>Shop</b>. Static analysis sees one <code>ShopRow</code> template. It cannot know how many rows the "server" sends, what they say, which are scrolled into view, or that a revisit creates brand-new rows. Only the running game knows.</div>
+      <div class="callout">The <b>Golden Oven</b> banner is declared in the files, but only appears after 25 coins of play. A template that exists is not a state you have reached.</div>
+      <h3 style="margin-top:14px">What we can promise</h3>
+      <p class="note">We can promise that each snapshot is complete and every gap is counted. We cannot promise every screen was visited. The static template list turns that into a measurable number: templates seen ÷ templates declared.</p>
+    </div>
+  </div>
+</section>
+
+<section class="tabpanel" role="tabpanel" id="tp-fid" aria-labelledby="t-fid" hidden>
+  <div class="two">
+    <div>
+      <h3>Give the mirror more abilities</h3>
+      <p class="note">Toggling these changes only the <b>mirror</b>. Watch the sniffer: its data does not change. The extraction was already correct — what was missing was the ability to draw it.</p>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="capFont"><b>Ship the game's fonts to the client</b><span>Fonts are licensed files. Without them, text is exact in content, size and colour, but drawn in a fallback face.</span></label>
+        <label class="toggle"><input type="checkbox" id="capGlow"><b>Implement the "glow" shader in the client</b><span>The data says "material: GlowPulse". A name is not a program — the client needs its own implementation.</span></label>
+        <label class="toggle"><input type="checkbox" id="capCustom"><b>Implement the custom radial timer</b><span>This widget draws its own shape in code. The data only has a rectangle and one number, so without code it is a placeholder.</span></label>
+        <label class="toggle"><input type="checkbox" id="capWorld"><b>Stream the 3D world as video</b><span>This fills the background, but it is pixels, not UI — a different architecture that would also hide redraw bugs.</span></label>
+      </div>
+      <h3 style="margin-top:16px">Simulate conversion bugs we actually hit</h3>
+      <div class="toggles">
+        <label class="toggle bug"><input type="checkbox" id="bugFlip"><b>Forget that the game counts Y from the bottom</b><span>Everything flips upside down. Node counts stay at 100%; only the geometry gate catches it.</span></label>
+        <label class="toggle bug"><input type="checkbox" id="bugStretch"><b>Stretch instead of letterbox</b><span>Buttons are distorted when the windows have different shapes.</span></label>
+      </div>
+    </div>
+    <div>
+      <h3>The causes, one by one</h3>
+      <div class="cause"><h3>Different renderer</h3><p>The mirror is a generic drawer of rectangles, images and text. The game can run any code it likes to draw a pixel. Anything beyond the common vocabulary arrives as a name the client cannot execute.</p></div>
+      <div class="cause"><h3>Assets we deliberately do not send</h3><p>Fonts are licensed. We send what the text says and how big it is, not the font file.</p></div>
+      <div class="cause"><h3>Things drawn by code</h3><p>Custom meshes, particles and procedural effects exist only while the game's code runs. They leave a rectangle behind, not a recipe.</p></div>
+      <div class="cause"><h3>Outside the UI entirely</h3><p>The 3D world is not in the UI tree. It is absent by definition, not by error.</p></div>
+      <div class="cause"><h3>Timing</h3><p>An image is sent the first time it is needed, so the very first frame that uses it may arrive before the pixels do. Replay has every image up front — which is exactly why live and replay can differ on a few frames.</p></div>
+      <div class="callout"><b>Geometry gate always reads 0% without bugs</b> — because the mirror copies the final rectangle. That is the point: it proves the conversion is not distorting anything. It does not prove the mirror <em>looks</em> the same. That is what "fully redrawn" measures.</div>
+    </div>
+  </div>
+</section>
+
+<section class="tabpanel" role="tabpanel" id="tp-exp" aria-labelledby="t-exp" hidden>
+  <div class="two">
+    <div>
+      <h3>Who plays the game when nobody is watching?</h3>
+      <p class="note">To collect many UI states automatically, an explorer drives the game. Each run starts a fresh copy and takes 80 actions (every action is half a second of game time). Coverage is measured against the static template list.</p>
+      <div class="controls"><button class="primary" id="runExp">Run all three explorers</button><button id="reseed">New random seed</button><span class="note" id="seedV"></span></div>
+      <div class="legend"><span><i style="background:#9aa3b2"></i>Blind: clicks random spots</span><span><i style="background:var(--accent)"></i>Semantic: clicks what the sniffer says is clickable</span><span><i style="background:var(--good)"></i>Semantic + patience: also waits when nothing is new</span></div>
+      <svg class="chart" id="chart" viewBox="0 0 520 260" role="img" aria-label="Templates discovered over 80 actions"></svg>
+    </div>
+    <div>
+      <h3>Result</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Explorer</th><th>Templates seen</th><th>Distinct states</th><th>Wasted clicks</th></tr></thead>
+        <tbody id="expBody"><tr><td colspan="4" class="note">Run the explorers to see results.</td></tr></tbody>
+      </table></div>
+      <h3 style="margin-top:14px">Declared but never reached</h3>
+      <div id="unreached" class="note">—</div>
+      <div class="callout" style="margin-top:12px">Our real prototype used the <b>blind</b> kind: fixed click positions per game. On one game it clicked character art and never left the splash screen. The sniffer already knows every clickable element each frame, which is what makes the <b>semantic</b> explorer possible — our proposed next step.</div>
+    </div>
+  </div>
+</section>
+
+<footer>This page is a simplified, self-contained illustration. The real system reads Unity's UI through the engine, sends snapshots over a local network socket, and records them to disk; the ideas and failure modes shown here are the same ones measured on three real games.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+const W=320, H=220;
+const $=id=>document.getElementById(id);
+
+/* ---------------------------------------------------------------- assets (the game's images) */
+const svg=b=>"data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'+b+'</svg>');
+const ASSETS={
+  coin:svg('<circle cx="16" cy="16" r="13" fill="#f4b73e" stroke="#b07a14" stroke-width="3"/><text x="16" y="21" font-size="14" text-anchor="middle" fill="#8a5a08" font-family="sans-serif" font-weight="700">$</text>'),
+  bread:svg('<ellipse cx="16" cy="18" rx="12" ry="8" fill="#d99a4e"/><path d="M9 15l3 6M15 13l3 7M21 14l2 6" stroke="#a8692a" stroke-width="2"/>'),
+  cake:svg('<rect x="5" y="14" width="22" height="12" rx="3" fill="#e98fa3"/><rect x="5" y="11" width="22" height="5" rx="2" fill="#fff4e6"/><circle cx="16" cy="8" r="3" fill="#d6344b"/>'),
+  donut:svg('<circle cx="16" cy="16" r="12" fill="#c98b5a"/><circle cx="16" cy="16" r="10" fill="#f28db2"/><circle cx="16" cy="16" r="4" fill="#fff"/>'),
+  cookie:svg('<circle cx="16" cy="16" r="12" fill="#d8a45c"/><circle cx="11" cy="12" r="2" fill="#5a3413"/><circle cx="19" cy="18" r="2" fill="#5a3413"/><circle cx="14" cy="21" r="1.6" fill="#5a3413"/>'),
+  pie:svg('<path d="M4 18h24l-3 8H7z" fill="#c9823f"/><ellipse cx="16" cy="17" rx="12" ry="5" fill="#b8323f"/>'),
+  oven:svg('<rect x="4" y="5" width="24" height="22" rx="3" fill="#f2c14e"/><rect x="8" y="12" width="16" height="11" rx="2" fill="#7a4a12"/><circle cx="10" cy="8.5" r="1.5" fill="#7a4a12"/><circle cx="15" cy="8.5" r="1.5" fill="#7a4a12"/>')
+};
+function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h.toString(16).padStart(8,"0")}
+const ASSET_VER={}; for(const k in ASSETS) ASSET_VER[k]=fnv(ASSETS[k]);
+
+const CATALOG=[["croissant","Croissant",3,"bread"],["cake","Berry cake",8,"cake"],["donut","Pink donut",4,"donut"],["cookie","Choc cookie",2,"cookie"],["pie","Cherry pie",7,"pie"],["muffin","Muffin",3,"cake"],["bagel","Bagel",3,"donut"],["eclair","Eclair",5,"bread"],["tart","Fruit tart",6,"pie"]];
+
+/* ---------------------------------------------------------------- the game (its own logic) */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function newGame(){return{screen:"menu",score:0,coins:0,playAcc:0,volume:.6,rows:[],scroll:0,toastUntil:-1,toastText:"",t:0,shopVisits:0}}
+function serverItems(visit){const r=rng(visit*977+13);const pool=CATALOG.slice();const n=4+Math.floor(r()*6);const out=[];while(out.length<n&&pool.length){out.push(pool.splice(Math.floor(r()*pool.length),1)[0])}return out}
+function tick(s,dt){s.t+=dt;if(s.screen==="play"){s.playAcc+=dt;while(s.playAcc>=.5){s.playAcc-=.5;s.score++;if(s.score%2===0)s.coins++}}}
+function act(s,a,x){
+  switch(a){
+    case"play":s.screen="play";break;
+    case"shop":s.screen="shop";s.shopVisits++;s.rows=serverItems(s.shopVisits).map(it=>({key:"row:"+s.shopVisits+":"+it[0],item:it}));s.scroll=0;break;
+    case"settings":s.screen="settings";break;
+    case"pause":s.screen="pause";break;
+    case"resume":s.screen="play";break;
+    case"quit":s.screen="menu";s.score=0;s.toastUntil=s.t+2.5;s.toastText="Welcome back!";break;
+    case"back":s.screen="menu";break;
+    case"up":s.scroll=Math.max(0,s.scroll-30);break;
+    case"down":s.scroll=Math.min(Math.max(0,s.rows.length*30-104),s.scroll+30);break;
+    case"volume":s.volume=Math.max(0,Math.min(1,(x-80)/160));break;
+  }
+}
+
+/* The game's UI tree. In Unity this is the scene hierarchy; here the game builds it from its state.
+   Coordinates are top-left inside the game; the sniffer will report them the way Unity does. */
+const TEMPLATES=[
+ ["Canvas","root","UI root"],["MainMenu","panel","menu screen"],["Title","text","game title"],["PlayButton","button","glowing button"],["ShopButton","button","button"],["SettingsButton","button","button"],
+ ["CoinIcon","image","coin image"],["CoinText","text","coin count"],["Toast","text","pop-up message"],
+ ["HUD","panel","in-game overlay"],["ScoreLabel","text","score"],["PauseButton","button","button"],["RadialTimer","custom","code-drawn widget"],
+ ["GoldenOvenBanner","panel","unlock banner"],["OvenIcon","image","oven image"],["BannerText","text","banner text"],
+ ["PauseMenu","panel","pause screen"],["PauseTitle","text","title"],["ResumeButton","button","button"],["QuitButton","button","button"],
+ ["ShopPanel","panel","shop screen"],["ShopTitle","text","title"],["ShopViewport","panel","scrolling list"],["ShopRow","panel","row template ×N"],["RowIcon","image","row image"],["RowName","text","row text"],["RowPrice","text","row price"],
+ ["UpButton","button","scroll up"],["DownButton","button","scroll down"],["BackButton","button","button"],
+ ["SettingsPanel","panel","settings screen"],["SettingsTitle","text","title"],["VolumeLabel","text","value label"],["VolumeTrack","button","slider track"],["VolumeFill","panel","slider fill"],["VolumeHandle","panel","slider handle"]
+];
+const TEMPLATE_INFO={};TEMPLATES.forEach(t=>TEMPLATE_INFO[t[0]]={kind:t[1],desc:t[2]});
+const IDS=new Map(); let nextId=-1000;
+function idFor(key){if(!IDS.has(key)){IDS.set(key,nextId);nextId-=2}return IDS.get(key)}
+
+function buildUI(s){
+  const out=[];const stack=[];
+  function add(key,tmpl,props,parentIdx){const n=Object.assign({key,tmpl,id:idFor(key),pid:parentIdx==null?null:out[parentIdx].id,parent:parentIdx,active:true,rect:[0,0,0,0],kind:TEMPLATE_INFO[tmpl].kind,font:"Fredoka",size:11,color:"#ffffff",fill:null},props);out.push(n);return out.length-1}
+  const root=add("Canvas","Canvas",{rect:[0,0,W,H]});
+  const m=add("MainMenu","MainMenu",{active:s.screen==="menu",rect:[0,0,W,H]},root);
+  add("Title","Title",{rect:[55,18,210,44],text:"Star Bakery",font:"Lobster",size:32,color:"#fff6df",align:"center"},m);
+  add("PlayButton","PlayButton",{rect:[110,78,100,30],fill:"#e5553e",text:"Play",size:14,effect:"GlowPulse",action:"play",radius:7},m);
+  add("ShopButton","ShopButton",{rect:[110,116,100,26],fill:"#3c7cc0",text:"Shop",action:"shop",radius:6},m);
+  add("SettingsButton","SettingsButton",{rect:[110,149,100,26],fill:"#646a7b",text:"Settings",action:"settings",radius:6},m);
+  add("CoinIcon","CoinIcon",{rect:[262,8,16,16],img:"coin"},m);
+  add("CoinText","CoinText",{rect:[281,8,36,16],text:String(s.coins),size:12},m);
+  add("Toast","Toast",{active:s.t<s.toastUntil,rect:[95,190,130,20],fill:"rgba(12,14,22,.7)",text:s.toastText||"",size:10,align:"center",radius:10},m);
+  const hud=add("HUD","HUD",{active:s.screen==="play"||s.screen==="pause",rect:[0,0,W,H]},root);
+  add("ScoreLabel","ScoreLabel",{rect:[10,8,120,18],text:"Score "+s.score,size:13},hud);
+  add("HudCoinIcon","CoinIcon",{rect:[262,8,16,16],img:"coin"},hud);
+  add("HudCoinText","CoinText",{rect:[281,8,36,16],text:String(s.coins),size:12},hud);
+  add("PauseButton","PauseButton",{rect:[10,192,58,20],fill:"#394056",text:"Pause",size:10,action:"pause",radius:5},hud);
+  add("RadialTimer","RadialTimer",{rect:[284,184,26,26],custom:"RadialTimer",props:{progress:+((s.t%3)/3).toFixed(2)},fill:"#7fe0c2"},hud);
+  const b=add("GoldenOvenBanner","GoldenOvenBanner",{active:s.coins>=25,rect:[78,92,164,36],fill:"#6b3d0f",radius:8},hud);
+  add("OvenIcon","OvenIcon",{rect:[84,96,28,28],img:"oven"},b);
+  add("BannerText","BannerText",{rect:[116,101,122,18],text:"Golden Oven unlocked!",size:10,color:"#ffe39a"},b);
+  const p=add("PauseMenu","PauseMenu",{active:s.screen==="pause",rect:[90,58,140,104],fill:"rgba(18,22,32,.9)",radius:9},root);
+  add("PauseTitle","PauseTitle",{rect:[90,64,140,20],text:"Paused",size:13,align:"center"},p);
+  add("ResumeButton","ResumeButton",{rect:[110,92,100,24],fill:"#2f8a5a",text:"Resume",action:"resume",radius:6},p);
+  add("QuitButton","QuitButton",{rect:[110,124,100,24],fill:"#9b3a32",text:"Quit to menu",action:"quit",radius:6},p);
+  const sp=add("ShopPanel","ShopPanel",{active:s.screen==="shop",rect:[40,20,240,180],fill:"#fff3df",radius:10},root);
+  add("ShopTitle","ShopTitle",{rect:[52,26,180,20],text:"Today's menu",size:13,color:"#6b3d0f"},sp);
+  const vp=add("ShopViewport","ShopViewport",{rect:[48,50,224,108],fill:"#f5ddb7",radius:6},sp);
+  const clip=[48,50,224,108];
+  if(s.screen==="shop"){s.rows.forEach((r,i)=>{const y=54+i*30-s.scroll;
+    const row=add(r.key,"ShopRow",{rect:[52,y,216,26],fill:"#ffffff",clip,radius:5},vp);
+    add(r.key+"/icon","RowIcon",{rect:[56,y+3,20,20],img:r.item[3],clip},row);
+    add(r.key+"/name","RowName",{rect:[82,y+4,120,18],text:r.item[1],size:11,color:"#3b2410",clip},row);
+    add(r.key+"/price","RowPrice",{rect:[224,y+4,40,18],text:r.item[2]+" c",size:11,color:"#9a5a10",clip},row);})}
+  add("UpButton","UpButton",{rect:[246,164,26,24],fill:"#c98a3a",text:"▲",size:10,action:"up",radius:5},sp);
+  add("DownButton","DownButton",{rect:[216,164,26,24],fill:"#c98a3a",text:"▼",size:10,action:"down",radius:5},sp);
+  add("BackButton","BackButton",{rect:[52,164,64,24],fill:"#6b3d0f",text:"Back",action:"back",radius:5},sp);
+  const st=add("SettingsPanel","SettingsPanel",{active:s.screen==="settings",rect:[60,38,200,144],fill:"#27304a",radius:10},root);
+  add("SettingsTitle","SettingsTitle",{rect:[72,46,160,20],text:"Settings",size:13},st);
+  add("VolumeLabel","VolumeLabel",{rect:[80,84,160,18],text:"Volume "+Math.round(s.volume*100)+"%",size:11},st);
+  add("VolumeTrack","VolumeTrack",{rect:[80,110,160,10],fill:"#11162a",action:"volume",radius:5},st);
+  add("VolumeFill","VolumeFill",{rect:[80,110,Math.max(1,160*s.volume),10],fill:"#6aa7ff",radius:5},st);
+  add("VolumeHandle","VolumeHandle",{rect:[80+160*s.volume-5,106,10,18],fill:"#ffffff",radius:3},st);
+  add("SettingsBack","BackButton",{rect:[80,146,64,24],fill:"#646a7b",text:"Back",action:"back",radius:5},st);
+  // effective visibility: active, all ancestors active, and not clipped out entirely
+  for(const n of out){let vis=n.active;let pi=n.parent;while(vis&&pi!=null){vis=out[pi].active;pi=out[pi].parent}
+    if(vis&&n.clip){const[x,y,w,h]=n.rect,[cx,cy,cw,ch]=n.clip;if(x+w<=cx||x>=cx+cw||y+h<=cy||y>=cy+ch)vis=false}
+    n.visible=vis}
+  return out;
+}
+function hitTest(s,x,y){const t=buildUI(s);for(let i=t.length-1;i>=0;i--){const n=t[i];if(!n.visible||!n.action)continue;const[a,b,w,h]=n.rect;if(x>=a&&x<=a+w&&y>=b&&y<=b+h){if(n.clip){const[cx,cy,cw,ch]=n.clip;if(x<cx||x>cx+cw||y<cy||y>cy+ch)continue}return n}}return null}
+
+/* ---------------------------------------------------------------- renderers */
+function styleNode(el,n,rect,opts){
+  el.style.left=rect[0]+"px";el.style.top=rect[1]+"px";el.style.width=rect[2]+"px";el.style.height=rect[3]+"px";
+  el.style.background=n.fill||"transparent";el.style.borderRadius=(n.radius||0)+"px";el.style.color=n.color||"#fff";
+  el.style.fontSize=(n.size||11)+"px";el.style.fontFamily=opts.font;
+  el.className="node"+(n.kind==="text"?" text":"")+(n.align==="center"?" center":"")+(opts.extra||"");
+}
+function clipPath(rect,clip){if(!clip)return"none";const t=Math.max(0,clip[1]-rect[1]),l=Math.max(0,clip[0]-rect[0]),b=Math.max(0,rect[1]+rect[3]-(clip[1]+clip[3])),r=Math.max(0,rect[0]+rect[2]-(clip[0]+clip[2]));return`inset(${t}px ${r}px ${b}px ${l}px)`}
+
+const srcEls=new Map();
+function renderSource(tree){
+  const stage=$("srcStage"),box=$("srcScreen").getBoundingClientRect();
+  const k=Math.min(box.width/W,box.height/H);stage.style.transform=`translate(${(box.width-W*k)/2}px,${(box.height-H*k)/2}px) scale(${k})`;
+  const seen=new Set();
+  for(const n of tree){if(!n.visible||n.kind==="root")continue;seen.add(n.id);
+    let el=srcEls.get(n.id);if(!el){el=document.createElement("div");srcEls.set(n.id,el);stage.appendChild(el)}
+    const font=n.font==="Lobster"?"Lobster, cursive":"Fredoka, 'Segoe UI', sans-serif";
+    styleNode(el,n,n.rect,{font,extra:n.effect?" fx-glow":""});
+    el.style.clipPath=clipPath(n.rect,n.clip);
+    if(n.custom){el.style.background=`conic-gradient(${n.fill} ${n.props.progress*360}deg, rgba(255,255,255,.15) 0)`;el.style.borderRadius="50%";el.textContent=""}
+    else if(n.img){if(!el.firstChild||el.firstChild.tagName!=="IMG"){el.textContent="";const im=new Image();im.alt="";el.appendChild(im)}el.firstChild.src=ASSETS[n.img]}
+    else el.textContent=n.text||"";
+    el.style.zIndex=String(tree.indexOf(n));
+  }
+  for(const[id,el]of srcEls){if(!seen.has(id)){el.remove();srcEls.delete(id)}}
+}
+
+/* the world: drawn by the game, not part of its UI tree */
+const world=$("world"),wctx=world.getContext("2d");
+function drawWorld(t){const w=world.width,h=world.height;const g=wctx.createLinearGradient(0,0,0,h);g.addColorStop(0,"#23305e");g.addColorStop(1,"#e59a6a");wctx.fillStyle=g;wctx.fillRect(0,0,w,h);
+  wctx.fillStyle="rgba(255,255,255,.5)";for(let i=0;i<4;i++){const x=((t*18+i*190)%(w+160))-80;wctx.beginPath();wctx.ellipse(x,70+i*22,48,14,0,0,7);wctx.fill()}
+  const hills=[["#3f2f57",.35,300],["#5c3e59",.55,250],["#7a4a4a",.8,200]];hills.forEach(([c,sp,y0],j)=>{wctx.fillStyle=c;wctx.beginPath();wctx.moveTo(0,h);for(let x=0;x<=w;x+=8){wctx.lineTo(x,y0+Math.sin(x/70+t*sp+j)*18)}wctx.lineTo(w,h);wctx.fill()})}
+
+/* ---------------------------------------------------------------- the sniffer (read-only) */
+function toBL(r){return r?[r[0],+(H-r[1]-r[3]).toFixed(2),r[2],r[3]].map(v=>+(+v).toFixed(2)):null}
+let snapId=0, prevLines=new Map(), sentAssets=new Set(), pendingAssets=[];
+const session=[]; // the recording: every snapshot, plus asset messages
+function sniff(){
+  const tree=buildUI(game); // read the game's UI tree; nothing is written back
+  const nodes=tree.map(n=>{const o={id:n.id,name:n.key.split("/").pop().replace(/^row:\d+:/,"row "),tmpl:n.tmpl,pid:n.pid,active:n.active,visible:n.visible,rect:toBL(n.rect)};
+    if(n.fill)o.fill=n.fill;if(n.text!=null&&n.text!=="")o.text=n.text;if(n.kind==="text"||n.text){o.font=n.font;o.size=n.size;o.color=n.color;if(n.align)o.align=n.align}
+    if(n.img)o.img={id:n.img,ver:ASSET_VER[n.img]};if(n.effect)o.material=n.effect;if(n.custom){o.custom=n.custom;o.props=n.props}
+    if(n.clip)o.clip=toBL(n.clip);if(n.radius)o.radius=n.radius;if(n.action)o.interactable=true;o.kind=n.kind;return o});
+  const snap={type:"snapshot",snapshotId:++snapId,t:+game.t.toFixed(2),viewport:{width:W,height:H,origin:"bottom-left"},nodes};
+  // new images: sent once, as their own message (they arrive just after this snapshot)
+  const newAssets=[];for(const n of tree){if(n.img&&!sentAssets.has(n.img)){sentAssets.add(n.img);newAssets.push({type:"asset",id:n.img,ver:ASSET_VER[n.img],bytes:ASSETS[n.img].length})}}
+  session.push({snap,assets:newAssets});
+  if(session.length>900)session.shift();
+  showSnapshot(snap,newAssets);
+  return{snap,newAssets};
+}
+function nodeLine(o){return JSON.stringify(o)}
+function showSnapshot(snap,newAssets){
+  const lines=[];let chg=0,hid=0;const cur=new Map();
+  lines.push('<span class="hdr">{ "snapshotId": '+snap.snapshotId+', "t": '+snap.t+', "viewport": {"w":320,"h":220,"origin":"bottom-left"},</span>');
+  lines.push('<span class="hdr">  "nodes": [</span>');
+  for(const o of snap.nodes){const s=nodeLine(o);cur.set(o.id,s);const changed=prevLines.get(o.id)!==s;if(changed)chg++;if(!o.visible)hid++;
+    const esc=s.replace(/&/g,"&amp;").replace(/</g,"&lt;");lines.push('<span class="'+(changed?"chg":(o.visible?"":"hid"))+'">    '+esc+'</span>')}
+  lines.push('<span class="hdr">  ] }</span>');
+  prevLines=cur;
+  const el=$("json");const keep=el.scrollTop;el.innerHTML=lines.join("\n");el.scrollTop=keep;
+  $("n-id").textContent=snap.snapshotId;$("n-bytes").textContent=(JSON.stringify(snap).length/1024).toFixed(1)+" KB";$("n-chg").textContent=chg+" / "+snap.nodes.length;$("n-hid").textContent=hid;
+  const log=$("assetLog");
+  if(newAssets.length){newAssets.forEach(a=>{const d=document.createElement("div");d.textContent="asset sent once: "+a.id+".png  version "+a.ver+"  ("+(a.bytes/1024).toFixed(1)+" KB)";log.appendChild(d)});log.scrollTop=log.scrollHeight}
+  else if(!log.childNodes.length){log.textContent="images are sent the first time a snapshot needs them"}
+}
+
+/* ---------------------------------------------------------------- the mirror (data only) */
+const caps={font:false,glow:false,custom:false,world:false},bugs={flip:false,stretch:false};
+let mirrorAssets=new Set(), mirEls=new Map(), lastMirrorIds=null, liveHashes=new Map(), mode="live";
+function mirrorMap(){const box=$("mirScreen").getBoundingClientRect();const sc=Math.min(box.width/W,box.height/H);
+  const correct={sx:sc,sy:sc,ox:(box.width-W*sc)/2,oy:(box.height-H*sc)/2};
+  const used=bugs.stretch?{sx:box.width/W,sy:box.height/H,ox:0,oy:0}:correct;return{correct,used}}
+function topLeft(r){return bugs.flip?[r[0],r[1],r[2],r[3]]:[r[0],H-r[1]-r[3],r[2],r[3]]}
+function applySnapshot(snap,assetSet,live){
+  const{correct,used}=mirrorMap();const stage=$("mirStage");
+  stage.style.transform=`translate(${used.ox}px,${used.oy}px) scale(${used.sx},${used.sy})`;
+  const seen=new Set();let vis=0,full=0,part=0,ph=0,miss=0,uns=0;const errs=[];const hashParts=[];
+  const byId=new Map();snap.nodes.forEach((o,i)=>byId.set(o.id,i));
+  let created=0,removed=0,updated=0;
+  snap.nodes.forEach((o,i)=>{
+    if(!o.visible||o.kind==="root")return;vis++;seen.add(o.id);
+    let el=mirEls.get(o.id);if(!el){el=document.createElement("div");mirEls.set(o.id,el);stage.appendChild(el);created++}else updated++;
+    const r=topLeft(o.rect);const reasons=[];let placeholder=false;
+    const fontOk=caps.font||!(o.text!=null);const font=caps.font?(o.font==="Lobster"?"Lobster, cursive":"Fredoka, sans-serif"):"system-ui, 'Segoe UI', sans-serif";
+    if(o.text!=null&&!caps.font)reasons.push("font");
+    if(o.material&&!caps.glow)reasons.push("material");
+    styleNode(el,o,r,{font,extra:(o.material&&caps.glow)?" fx-glow":""});
+    el.style.clipPath=o.clip?clipPath(r,topLeft(o.clip)):"none";
+    let imgMissing=false;
+    if(o.custom){if(caps.custom){el.style.background=`conic-gradient(${o.fill} ${o.props.progress*360}deg, rgba(255,255,255,.15) 0)`;el.style.borderRadius="50%";el.textContent=""}
+      else{placeholder=true;el.textContent="custom";reasons.push("custom mesh")}}
+    else if(o.img){if(assetSet.has(o.img.id)){if(!el.firstChild||el.firstChild.tagName!=="IMG"){el.textContent="";const im=new Image();im.alt="";el.appendChild(im)}el.firstChild.src=ASSETS[o.img.id]}
+      else{el.textContent="";imgMissing=true;miss++;reasons.push("image not arrived")}}
+    else el.textContent=o.text||"";
+    el.style.zIndex=String(i);
+    const d=$("diag").checked;
+    if(placeholder){el.classList.add("placeholder");ph++}
+    else if(reasons.length){part++;if(d)el.classList.add(imgMissing?"diag-missing":"diag-partial")}
+    else full++;
+    uns+=reasons.length;
+    // geometry gate: where did the mirror actually put it, in the game's own coordinates?
+    const px=used.ox+r[0]*used.sx,py=used.oy+r[1]*used.sy,pw=r[2]*used.sx,phh=r[3]*used.sy;
+    const bx=(px-correct.ox)/correct.sx,by=(py-correct.oy)/correct.sy,bw=pw/correct.sx,bh=phh/correct.sy;
+    const tx=o.rect[0],ty=H-o.rect[1]-o.rect[3],tw=o.rect[2],th=o.rect[3];
+    errs.push(Math.abs(bx-tx)/W,Math.abs(by-ty)/H,Math.abs(bx+bw-tx-tw)/W,Math.abs(by+bh-ty-th)/H);
+    hashParts.push(o.id+"|"+o.rect.join(",")+"|"+(o.img?(assetSet.has(o.img.id)?o.img.ver:"-"):"")+"|"+(o.text||""));
+  });
+  for(const[id,el]of mirEls){if(!seen.has(id)){el.remove();mirEls.delete(id);removed++}}
+  errs.sort((a,b)=>a-b);const p95=errs.length?errs[Math.floor(.95*(errs.length-1))]:0;
+  const hash=fnv(hashParts.sort().join("\n"));
+  if(live)liveHashes.set(snap.snapshotId,hash);
+  $("m-err").textContent=(p95*100).toFixed(2)+"%";
+  const g=$("gate");const pass=p95<=.01;g.className="gate "+(pass?"pass":"fail");g.textContent="geometry gate: "+(pass?"pass":"FAIL");
+  $("m-diff").textContent="+"+created+" new, "+updated+" updated, −"+removed+" removed";
+  $("m-struct").innerHTML=snap.nodes.length+" <small>/ "+snap.nodes.length+" = 100%</small>";
+  $("m-full").innerHTML=full+" <small>/ "+vis+" visible ("+(vis?Math.round(100*full/vis):0)+"%)</small>";
+  $("m-part").textContent=part;$("m-ph").textContent=ph;$("m-miss").textContent=miss;$("m-uns").textContent=uns;
+  mirrorStats={vis,full,part,ph,uns,nodes:snap.nodes.length,hid:snap.nodes.filter(o=>!o.visible).length};
+  return hash;
+}
+let mirrorStats=null;
+
+/* ---------------------------------------------------------------- loop */
+let game=newGame(), running=true, lastT=performance.now(), sniffAcc=0, rateHz=4, lastSnap=null;
+const observed={}; // template -> {count max, detail}
+function observe(snap){for(const o of snap.nodes){if(!o.visible)continue;const k=o.tmpl;const e=observed[k]||(observed[k]={max:0,detail:new Set()});e._c=(e._c||0)+1}
+  for(const k in observed){const e=observed[k];if(e._c){e.max=Math.max(e.max,e._c)}e._c=0}
+  for(const o of snap.nodes){if(!o.visible)continue;const e=observed[o.tmpl];if(!e)continue;
+    if(o.tmpl==="RowName"&&o.text)e.detail.add(o.text);else if(o.tmpl==="ScoreLabel")e.last=o.text;else if(o.tmpl==="VolumeLabel")e.last=o.text;else if(o.tmpl==="Toast")e.last=o.text}}
+function frame(now){
+  const dt=Math.min(.1,(now-lastT)/1000);lastT=now;
+  if(running){tick(game,dt);drawWorld(game.t);const tree=buildUI(game);renderSource(tree);
+    $("s-screen").textContent=game.screen;$("s-score").textContent=game.score;$("s-coins").textContent=game.coins;$("s-nodes").textContent=tree.length;
+    sniffAcc+=dt;if(sniffAcc>=1/rateHz){sniffAcc=0;
+      // assets from the previous snapshot arrive now, before this snapshot is applied
+      pendingAssets.forEach(a=>mirrorAssets.add(a.id));pendingAssets=[];
+      const{snap,newAssets}=sniff();lastSnap=snap;observe(snap);
+      if(mode==="live")applySnapshot(snap,mirrorAssets,true);else liveHashes.set(snap.snapshotId,null);
+      pendingAssets=newAssets;updateCompleteness();refreshScrub()}}
+  if(caps.world&&running){const mw=$("mirWorld");const c=mw.getContext("2d");const{used}=mirrorMap();const box=$("mirScreen").getBoundingClientRect();const k=mw.width/box.width;
+    c.fillStyle="#0d1016";c.fillRect(0,0,mw.width,mw.height);c.drawImage(world,used.ox*k,used.oy*k,W*used.sx*k,H*used.sy*k)}
+  requestAnimationFrame(frame)}
+
+/* ---------------------------------------------------------------- input on the game */
+$("srcScreen").addEventListener("click",e=>{if(!running)return;const box=$("srcScreen").getBoundingClientRect();const k=Math.min(box.width/W,box.height/H);
+  const x=(e.clientX-box.left-(box.width-W*k)/2)/k,y=(e.clientY-box.top-(box.height-H*k)/2)/k;const n=hitTest(game,x,y);if(n)act(game,n.action,x)});
+$("srcScreen").addEventListener("wheel",e=>{if(!running||game.screen!=="shop")return;e.preventDefault();act(game,e.deltaY>0?"down":"up")},{passive:false});
+$("btnClose").onclick=()=>{running=!running;$("closedCover").hidden=running;$("btnClose").textContent=running?"Close the game":"Reopen the game";if(!running&&mode==="live")toggleReplay()};
+$("btnReset").onclick=()=>{game=newGame();running=true;$("closedCover").hidden=true;$("btnClose").textContent="Close the game"};
+$("rate").oninput=e=>{rateHz=+e.target.value;$("rateV").textContent=rateHz+" Hz"};
+$("diag").onchange=()=>{if(mode==="live"&&lastSnap)applySnapshot(lastSnap,mirrorAssets,false);else scrubTo()};
+
+/* ---------------------------------------------------------------- replay */
+function toggleReplay(){mode=mode==="live"?"replay":"live";$("replayBox").hidden=mode==="live";$("mirMode").textContent=mode;$("btnReplay").textContent=mode==="live"?"Replay recording":"Back to live";
+  if(mode==="replay"){refreshScrub();$("scrub").value=$("scrub").max;scrubTo()}else if(lastSnap)applySnapshot(lastSnap,mirrorAssets,false)}
+$("btnReplay").onclick=toggleReplay;
+function refreshScrub(){$("scrub").max=Math.max(0,session.length-1)}
+function scrubTo(){if(mode!=="replay"||!session.length)return;const i=+$("scrub").value;const rec=session[i];
+  const all=new Set();session.forEach(s=>s.assets.forEach(a=>all.add(a.id))); // replay has every image on disk up front
+  const h=applySnapshot(rec.snap,all,false);$("scrubV").textContent="#"+rec.snap.snapshotId;
+  const lh=liveHashes.get(rec.snap.snapshotId);const out=$("replayCmp");
+  if(lh==null)out.textContent="This snapshot was recorded but never shown live (the mirror was in replay mode).";
+  else if(lh===h)out.innerHTML='<span class="pill good">identical</span> Replaying this snapshot reproduces exactly what the mirror showed live.';
+  else out.innerHTML='<span class="pill warn">differs</span> Live, an image had not arrived yet when this snapshot was drawn. Replay has every image up front. Geometry and structure are identical.'}
+$("scrub").oninput=scrubTo;
+
+/* ---------------------------------------------------------------- capability + bug toggles */
+[["capFont","font"],["capGlow","glow"],["capCustom","custom"],["capWorld","world"]].forEach(([id,k])=>{$(id).onchange=e=>{caps[k]=e.target.checked;
+  if(k==="world"){$("mirWorld").hidden=!caps.world;$("worldNote").innerHTML=caps.world?"world streamed as video<br>(pixels, not UI)":"world rendering not mirrored<br>(outside the UI tree, by design)"}
+  redrawMirror()}});
+[["bugFlip","flip"],["bugStretch","stretch"]].forEach(([id,k])=>{$(id).onchange=e=>{bugs[k]=e.target.checked;redrawMirror()}});
+function redrawMirror(){for(const el of mirEls.values())el.remove();mirEls.clear();if(mode==="live"&&lastSnap)applySnapshot(lastSnap,mirrorAssets,false);else scrubTo()}
+
+/* ---------------------------------------------------------------- completeness tab */
+function updateCompleteness(){
+  if(!mirrorStats)return;
+  $("c-cap").textContent=mirrorStats.nodes+" / "+mirrorStats.nodes+" nodes";
+  $("c-acc").textContent=mirrorStats.uns+" gaps listed";
+  const declared=TEMPLATES.length;const seen=TEMPLATES.filter(t=>observed[t[0]]&&observed[t[0]].max>0).length;
+  $("c-state").textContent=seen+" / "+declared+" templates";
+  $("covBar").style.width=(100*seen/declared)+"%";$("covText").textContent=seen+" of "+declared+" declared templates have appeared on screen so far.";
+  const rows=TEMPLATES.map(([name,kind,desc])=>{const o=observed[name];const s=o&&o.max>0;
+    let staticKnows=kind+": "+desc;if(name==="ShopRow")staticKnows="a template; count unknown";if(name==="RowName")staticKnows="text field; content unknown";if(name==="GoldenOvenBanner")staticKnows="exists; shown only when a condition holds";if(name==="ScoreLabel")staticKnows="text field; value unknown";
+    let detail="";if(o){if(name==="ShopRow")detail="up to "+o.max+" at once";else if(name==="RowName")detail=[...o.detail].slice(0,6).join(", ")+(o.detail.size>6?"…":"");else if(o.last)detail=o.last;else if(o.max>1)detail=o.max+" at once"}
+    return`<tr><td>${name}</td><td class="note">${staticKnows}</td><td class="${s?"seen":"unseen"}">${s?"yes":"not yet"}</td><td class="note">${detail}</td></tr>`});
+  $("compBody").innerHTML=rows.join("")}
+
+/* ---------------------------------------------------------------- walkthrough */
+const STEPS=[
+ {spot:"p-src",title:"The game draws its interface",body:"<p>Click <b>Play</b>, then <b>Pause</b>, then <b>Quit to menu</b>. The game runs its own logic, exactly as a real game would. Nothing we built changes that logic.</p><p>Behind the buttons, the moving hills stand in for the 3D world. The game draws them, but they are not part of its interface.</p>"},
+ {spot:"p-snf",title:"The interface is a tree of nodes",body:"<p>Every button, label and image is a node with a parent. The pause menu exists even while hidden — it is just marked inactive. That is why the sniffer reports <b>hidden nodes captured</b>: we record them too, so nothing appears from nowhere.</p>"},
+ {spot:"p-snf",title:"The sniffer reads it, several times a second",body:"<p>At a fixed rate (4 per second here, 15 in the real system) the sniffer reads the whole tree <b>after</b> the game has finished laying it out, so every position is final. It only reads. It never clicks, moves or changes anything.</p><p>Try the rate slider.</p>"},
+ {spot:"p-snf",title:"A full snapshot every time — not a list of changes",body:"<p>Each snapshot contains every node. The highlighted lines are the ones that changed since the last snapshot — usually very few. Sending everything means a lost message is repaired by the next one, and a replay can start anywhere.</p><p>Note <code>\"origin\":\"bottom-left\"</code>: the game counts Y from the bottom, as Unity does. The mirror must convert.</p>"},
+ {spot:"p-snf",title:"Images travel once",body:"<p>The first time a snapshot needs an image, its pixels are sent separately with a version fingerprint (see the log under the snapshot). After that, snapshots only refer to it. Open the <b>Shop</b> to see new images being sent.</p><p>Because the image arrives just after the snapshot that first needs it, the mirror briefly shows a red dashed box. That is real, and it explains a measured result later.</p>"},
+ {spot:"p-mir",title:"The mirror redraws from data alone",body:"<p>The mirror compares each snapshot with what it already has: new IDs are created, existing ones updated, vanished ones removed — see <b>diff</b>. It places each element at the reported final rectangle, scaled uniformly with black bars, because its window has a different shape.</p><p>Yellow dashed outlines mark nodes it can only partly redraw. The <b>Why it looks different</b> tab explains each one.</p>"},
+ {spot:"p-mir",title:"Everything is recorded, so the game can close",body:"<p>Every snapshot is also written to a recording. Press <b>Close the game</b>, then drag the slider under the mirror. The mirror replays the session without the game.</p><p>Most snapshots replay <b>identically</b>. A few <b>differ</b>: live, an image had not arrived yet; the replay has every image up front. That is exactly why our real replay-equivalence figures are 90–99.7% rather than 100%, with zero structural differences.</p>"}
+];
+let step=0;
+function showStep(){const s=STEPS[step];document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("spot",p.id===s.spot));
+  $("stepCard").innerHTML=`<div class="step-num">Step ${step+1} of ${STEPS.length}</div><h3>${s.title}</h3>${s.body}`;
+  $("dots").innerHTML=STEPS.map((_,i)=>`<span class="${i<=step?"on":""}"></span>`).join("");
+  $("prevStep").disabled=step===0;$("nextStep").textContent=step===STEPS.length-1?"Start over":"Next step"}
+$("nextStep").onclick=()=>{step=step===STEPS.length-1?0:step+1;showStep()};$("prevStep").onclick=()=>{if(step>0){step--;showStep()}};
+
+/* ---------------------------------------------------------------- tabs */
+const tabs=[["t-walk","tp-walk"],["t-comp","tp-comp"],["t-fid","tp-fid"],["t-exp","tp-exp"]];
+tabs.forEach(([t,p])=>{$(t).onclick=()=>{tabs.forEach(([t2,p2])=>{$(t2).setAttribute("aria-selected",String(t2===t));$(p2).hidden=t2!==t});
+  if(t!=="t-walk")document.querySelectorAll(".panel").forEach(x=>x.classList.remove("spot"));else showStep()}});
+
+/* ---------------------------------------------------------------- auto-explorer (headless copies of the game) */
+let seed=7;$("seedV").textContent="seed "+seed;
+function stateKey(s){const t=buildUI(s).filter(n=>n.visible).map(n=>n.tmpl);return s.screen+"|"+[...new Set(t)].sort().join(",")}
+function runExplorer(kind,sd){
+  const s=newGame();const r=rng(sd);const seenT=new Set(),states=new Set(),visits=new Map();let wasted=0,series=[],waitLeft=0;
+  const record=()=>{buildUI(s).forEach(n=>{if(n.visible)seenT.add(n.tmpl)});states.add(stateKey(s))};record();series.push(seenT.size);
+  for(let i=0;i<80;i++){
+    if(kind==="blind"){const x=r()*W,y=r()*H;const n=hitTest(s,x,y);if(n)act(s,n.action,x);else wasted++}
+    else{const key=stateKey(s);const cands=buildUI(s).filter(n=>n.visible&&n.action).map(n=>({k:n.tmpl+":"+n.action,n}));cands.push({k:"wait",n:null});
+      let choice;
+      if(kind==="patient"&&waitLeft>0){choice={k:"wait",n:null};waitLeft--}
+      else{let best=1e9,pool=[];for(const c of cands){const v=visits.get(key+"#"+c.k)||0;if(v<best){best=v;pool=[c]}else if(v===best)pool.push(c)}
+        choice=pool[Math.floor(r()*pool.length)];
+        if(kind==="patient"&&best>0&&s.screen==="play"){choice={k:"wait",n:null};waitLeft=9}}
+      visits.set(key+"#"+choice.k,(visits.get(key+"#"+choice.k)||0)+1);
+      if(choice.n){const[x,y,w,h]=choice.n.rect;act(s,choice.n.action,x+w*(.3+.4*r()))}}
+    tick(s,.5);record();series.push(seenT.size)}
+  return{series,seen:seenT,states:states.size,wasted}}
+function runAll(){
+  const res={blind:runExplorer("blind",seed),semantic:runExplorer("semantic",seed),patient:runExplorer("patient",seed)};
+  const names={blind:"Blind",semantic:"Semantic",patient:"Semantic + patience"};
+  $("expBody").innerHTML=Object.keys(res).map(k=>`<tr><td>${names[k]}</td><td class="n">${res[k].seen.size} / ${TEMPLATES.length}</td><td class="n">${res[k].states}</td><td class="n">${res[k].wasted}</td></tr>`).join("");
+  const union=new Set();Object.values(res).forEach(v=>v.seen.forEach(t=>union.add(t)));
+  const per=Object.keys(res).map(k=>{const miss=TEMPLATES.map(t=>t[0]).filter(t=>!res[k].seen.has(t));return`<p style="margin:0 0 6px"><b>${names[k]}:</b> ${miss.length?miss.join(", "):"none"}</p>`});
+  $("unreached").innerHTML=per.join("")+'<p style="margin:6px 0 0">These come straight from the static template list. Without it, a missing screen would simply be invisible to us.</p>';
+  drawChart(res)}
+function drawChart(res){const svgEl=$("chart");const L=40,R=510,T=14,B=226;const maxY=TEMPLATES.length;
+  const css=getComputedStyle(document.documentElement);const ink=css.getPropertyValue("--muted").trim()||"#5b6677";const rule=css.getPropertyValue("--rule").trim()||"#d9dfe6";const acc=css.getPropertyValue("--accent").trim();const good=css.getPropertyValue("--good").trim();
+  const x=i=>L+(R-L)*i/80,y=v=>B-(B-T)*v/maxY;let g="";
+  for(let v=0;v<=maxY;v+=6){g+=`<line x1="${L}" x2="${R}" y1="${y(v)}" y2="${y(v)}" stroke="${rule}" stroke-width="1"/><text x="${L-6}" y="${y(v)+4}" font-size="11" text-anchor="end" fill="${ink}">${v}</text>`}
+  for(let i=0;i<=80;i+=20){g+=`<text x="${x(i)}" y="${B+16}" font-size="11" text-anchor="middle" fill="${ink}">${i}</text>`}
+  g+=`<line x1="${L}" x2="${R}" y1="${y(maxY)}" y2="${y(maxY)}" stroke="${ink}" stroke-dasharray="4 4" stroke-width="1"/><text x="${R}" y="${y(maxY)-4}" font-size="11" text-anchor="end" fill="${ink}">declared templates (${maxY})</text>`;
+  g+=`<text x="${(L+R)/2}" y="${B+32}" font-size="11" text-anchor="middle" fill="${ink}">actions taken</text>`;
+  const line=(s,c,w)=>`<polyline fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" points="${s.map((v,i)=>x(i)+","+y(v)).join(" ")}"/>`;
+  g+=line(res.blind.series,"#9aa3b2",2)+line(res.semantic.series,acc,2.4)+line(res.patient.series,good,2.4);
+  svgEl.setAttribute("viewBox","0 0 520 262");svgEl.innerHTML=g}
+$("runExp").onclick=runAll;$("reseed").onclick=()=>{seed=Math.floor(Math.random()*9999)+1;$("seedV").textContent="seed "+seed;runAll()};
+
+/* ---------------------------------------------------------------- start */
+showStep();runAll();requestAnimationFrame(frame);
+window.addEventListener("resize",()=>{if(mode==="live"&&lastSnap)redrawMirror();else scrubTo()});
+})();
+</script>
+</body>
+</html>
