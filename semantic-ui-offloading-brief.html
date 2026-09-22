@@ -1,0 +1,273 @@
+<title>Semantic UI Offloading Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#f5f7f8; --sheet:#ffffff; --ink:#18212e; --muted:#586475; --rule:#dde3e8;
+  --accent:#1b6a86; --accent-soft:#e3f0f5; --good:#2f7d4f; --good-soft:#e5f3ea;
+  --warn:#a86a12; --warn-soft:#fbf0dc; --bad:#b0443b; --bad-soft:#f8e4e2; --code:#eef1f4;
+  --serif:"Literata", Georgia, "Times New Roman", serif;
+  --sans:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#12171d; --sheet:#1a2129; --ink:#e4e9ee; --muted:#9aa6b4; --rule:#2c3640;
+  --accent:#6cb7d3; --accent-soft:#1c3440; --good:#6fc592; --good-soft:#1a3326;
+  --warn:#e2b061; --warn-soft:#3a2d15; --bad:#ec8c83; --bad-soft:#3b1f1c; --code:#222b35; } }
+:root[data-theme="dark"]{
+  --paper:#12171d; --sheet:#1a2129; --ink:#e4e9ee; --muted:#9aa6b4; --rule:#2c3640;
+  --accent:#6cb7d3; --accent-soft:#1c3440; --good:#6fc592; --good-soft:#1a3326;
+  --warn:#e2b061; --warn-soft:#3a2d15; --bad:#ec8c83; --bad-soft:#3b1f1c; --code:#222b35; }
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:16px/1.62 var(--sans);padding-inline:16px;padding-block:32px 64px}
+.wrap{max-width:860px;margin:0 auto}
+header{border-bottom:1px solid var(--rule);padding-bottom:24px;margin-bottom:8px}
+.eyebrow{font:500 12px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font:650 clamp(30px,5vw,42px)/1.12 var(--serif);margin:12px 0 12px;text-wrap:balance}
+h2{font:650 26px/1.2 var(--serif);margin:48px 0 12px;text-wrap:balance}
+h3{font:600 17px/1.35 var(--sans);margin:28px 0 8px}
+p,li{max-width:68ch}
+.lede{font-size:18px;color:var(--ink)}
+.meta{color:var(--muted);font-size:14px}
+code,.mono{font-family:var(--mono);font-size:.88em;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{font:13px/1.55 var(--mono);background:var(--code);padding:14px 16px;border-radius:6px;overflow-x:auto}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 0;font-size:14px}
+nav.toc a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+nav.toc a:hover,nav.toc a:focus-visible{border-bottom-color:var(--accent)}
+.thesis{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;padding:20px 22px;margin:24px 0}
+.thesis strong{color:var(--accent)}
+.table-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--rule);border-radius:8px;background:var(--sheet)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase;background:var(--paper)}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font:600 11px/1.6 var(--sans);letter-spacing:.05em;text-transform:uppercase;padding:0 7px;border-radius:999px}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:18px 0}
+.level{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;padding:16px}
+.level h4{margin:6px 0 6px;font:600 15px/1.3 var(--sans)}
+.level p{font-size:14px;margin:0;color:var(--muted)}
+.callout{border-left:3px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:0 6px 6px 0;margin:18px 0}
+.callout.info{border-color:var(--accent);background:var(--accent-soft)}
+.qa{border-top:1px solid var(--rule);padding:18px 0}
+.qa:first-of-type{border-top:0}
+.q{font:600 17px/1.4 var(--serif);margin:0 0 8px}
+.q::before{content:"Q. ";color:var(--bad)}
+.a{margin:0}
+.a p{margin:0 0 8px}
+.short{font-weight:600}
+pre.mermaid{background:var(--sheet);border:1px solid var(--rule);text-align:center}
+footer{margin-top:56px;border-top:1px solid var(--rule);padding-top:16px;color:var(--muted);font-size:13px}
+a{color:var(--accent)}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Research brief · passive UI mirroring for Unity games</div>
+  <h1>Semantic UI offloading: what we built, what it proves, and what it does not</h1>
+  <p class="lede">We built a system that watches a running Unity game, describes its user interface as data instead of pixels, and redraws that interface in a separate, generic client — live, and again later from a recording. We tested it on three real student games.</p>
+  <p class="meta">Evidence: three games, one shared implementation (v1), final measured sessions <code>final-03</code>. Every number below is read from recorded session data.</p>
+  <nav class="toc" aria-label="Contents">
+    <a href="#idea">The idea</a><a href="#static">Static vs runtime</a><a href="#sniffer">How the sniffer works</a>
+    <a href="#completeness">Completeness</a><a href="#fidelity">Why fidelity gaps remain</a><a href="#results">Results</a>
+    <a href="#bandwidth">Bandwidth</a><a href="#explorer">UI auto-explorer</a><a href="#next">Next steps</a><a href="#qa">Hard questions</a>
+  </nav>
+</header>
+
+<section id="idea">
+<h2>The idea in one paragraph</h2>
+<p>A cloud-gaming service today sends the player a video of the whole screen, including the menus, buttons and text. Those UI elements are highly structured: a button is a rectangle with an image, a label and a state. Our hypothesis is that the UI can be sent as <em>meaning</em> — "a button named Start, here, with this image, currently enabled" — and redrawn on the client. That could make UI sharper, cheaper to transmit, and accessible to local tools. This project asks the prerequisite question: <strong>can we capture a real game's UI completely and faithfully enough, without modifying how the game behaves?</strong></p>
+
+<div class="thesis">
+  <strong>Core claim.</strong> Static analysis tells us <em>what UI assets and templates exist</em>. A passive runtime sniffer tells us <em>what the UI actually is at this moment</em>. A generic client redraws that state — but it is not the game's renderer, so it can be geometrically exact while still looking different.
+</div>
+
+<pre class="mermaid">
+flowchart LR
+  A["Build time<br/>static asset index<br/>(what exists)"] --> B
+  G["Running game<br/>(unchanged logic)"] --> B["Passive sniffer<br/>reads UI tree 15x per second"]
+  B -->|"full snapshot<br/>+ images, sent once"| C["Generic mirror<br/>redraws UI"]
+  B --> D[("Session log<br/>on disk")]
+  D -->|"offline replay,<br/>game closed"| C
+</pre>
+</section>
+
+<section id="static">
+<h2>What static analysis can and cannot tell us</h2>
+<p><strong>Static analysis</strong> means inspecting the game's files without running it. It is useful, but it cannot, on its own, produce the UI a player actually sees.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Static analysis can find</th><th>Only runtime can know</th></tr></thead>
+<tbody>
+<tr><td>Which UI templates exist (a "shop row", a "pause menu")</td><td>How many shop rows were created, and in what order</td></tr>
+<tr><td>Which images, fonts and materials are referenced</td><td>The current score, player name, language, health</td></tr>
+<tr><td>The layout rules authored in the editor</td><td>Final positions after animation, layout and screen scaling</td></tr>
+<tr><td>Which scripts could show or hide things</td><td>Which elements are visible right now</td></tr>
+<tr><td>Scroll views and lists as components</td><td>The current scroll position and what is clipped</td></tr>
+</tbody></table></div>
+<p>A concrete example: static analysis sees a shop-row template and the code that loops over server data to create rows. It cannot know how many rows the server will send or what each says. It gives a <em>superset of building blocks</em>, not the <em>concrete state</em>. Computing every reachable UI state of an arbitrary program is, in general, undecidable.</p>
+<p>So in our system, static analysis has a narrow job: an editor-time pass builds an <strong>asset identity index</strong>, so a sprite seen at runtime can be named by its stable project ID rather than a per-run memory address. Measured: 207 of 215 referenced assets in <em>Unchained</em> resolved to stable IDs; the rest are explicitly labelled session-local.</p>
+<p><strong>Why we do not simply copy the game's scenes and prefabs into the client:</strong> a prefab drags in scripts, shaders, animation controllers and packages. Making it render correctly means copying the whole dependency chain, and the client would start running game code — at which point it is a second copy of the game, not a passive mirror, and recordings would no longer replay independently.</p>
+</section>
+
+<section id="sniffer">
+<h2>How the sniffer works</h2>
+<ol>
+  <li><strong>Injected, but passive.</strong> A small benchmark module is compiled into a copy of the game. It starts itself at launch and only <em>reads</em>: it never changes a value, clicks a button, creates or destroys game objects, or touches game timing. Network and disk I/O run on background threads so the game's frame loop is never blocked.</li>
+  <li><strong>Sampled after layout.</strong> Unity announces when it is about to draw the UI. At that point all layout is resolved, so the sniffer reads final positions — at most once per sampling interval (15 Hz).</li>
+  <li><strong>Full snapshot, every time.</strong> Each sample is the complete UI tree: every node, its parent and sibling order, visibility, final on-screen rectangle, text, colours, image reference, draw order and clip region. No deltas. A lost message is repaired by the next one, and a replay can start anywhere.</li>
+  <li><strong>Final screen geometry is the ground truth.</strong> The sniffer records where each element ended up on screen, not the authoring rules that produced it. The mirror places elements there directly and never re-runs the game's layout — that is what eliminates a whole class of "the button is in the wrong place" errors.</li>
+  <li><strong>Images sent once.</strong> The first time an image is referenced, its pixels are extracted and sent with a content hash. Later snapshots reference it by ID and version.</li>
+  <li><strong>Everything unsupported is recorded.</strong> Any component or property the generic mirror cannot reproduce generates an explicit record — which node, which property, why, and whether it affects what you see.</li>
+  <li><strong>The mirror diffs by ID.</strong> On each snapshot the mirror creates new nodes, updates existing ones, re-parents moved ones and deletes vanished ones. It never runs game code.</li>
+</ol>
+<pre>{ "snapshotId": 43, "viewport": {"width": 1884, "height": 1465},
+  "nodes": [
+    { "id": -164, "name": "NewGameButton", "pid": -120, "sib": 2,
+      "visible": true, "rect": [1341, 797, 441, 164], "draw": 3,
+      "comps": [{ "t": "Image", "sprite": "guid:7851a8…#start" }] } ],
+  "unsupported": [ { "component": "TMP_Text", "property": "fontGlyphs", … } ] }</pre>
+<p class="meta">Simplified from a real <em>Smoke Break</em> snapshot.</p>
+</section>
+
+<section id="completeness">
+<h2>What "completeness" means — three different levels</h2>
+<p>"Complete" is easy to over-claim. We separate it into three levels and state which ones we can guarantee.</p>
+<div class="levels">
+  <div class="level"><span class="pill good">guaranteed · measured</span><h4>1. Capture completeness</h4><p>Within each snapshot, every node under every UI root in every loaded scene is emitted — including hidden ones. Measured structural coverage: 100% in all three games.</p></div>
+  <div class="level"><span class="pill good">guaranteed · measured</span><h4>2. Accounting completeness</h4><p>Nothing is silently skipped. Every unsupported property, missing image and fallback font is counted in its own denominator and reported.</p></div>
+  <div class="level"><span class="pill bad">not guaranteed</span><h4>3. State coverage</h4><p>Whether we ever <em>visited</em> every screen the game can show. This depends on the exploration driving the game, and today that is our weakest part.</p></div>
+</div>
+<p>Level 3 is where static analysis becomes valuable again: its template list can serve as the <em>denominator</em> for exploration. "The game declares 40 UI templates; exploration instantiated 31; these 9 were never seen." That turns an unknowable question into a measurable one. This is proposed, not yet implemented.</p>
+</section>
+
+<section id="fidelity">
+<h2>If extraction is correct, why is fidelity still imperfect?</h2>
+<p>Because <strong>correct description is not the same as having the original renderer</strong>. We send "a button with this image and a glow shader called <code>MapButton</code>". The client has the image and the rectangle, but not the shader program that produces the glow. The geometry is exact; the appearance differs.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Cause</th><th>What the mirror gets</th><th>What it lacks</th><th>Measured example</th></tr></thead>
+<tbody>
+<tr><td>Custom UI shaders / materials</td><td>Material name, rectangle, image</td><td>The shader program</td><td class="num">Spurpunk: 785 nodes</td></tr>
+<tr><td>Fonts</td><td>Text, size, colour, alignment</td><td>Font file (deliberately not copied, licensing)</td><td class="num">All games; text wraps differently</td></tr>
+<tr><td>Custom mesh / effects</td><td>Rectangle and colour</td><td>Geometry generated by code at runtime</td><td class="num">Unchained <code>Glow</code>: 22 nodes</td></tr>
+<tr><td>Stencil masks</td><td>Mask bounding box</td><td>The mask's alpha shape</td><td class="num">Spurpunk: 6 nodes</td></tr>
+<tr><td>Skewed / perspective UI</td><td>Four corners</td><td>A way to draw non-rectangles</td><td class="num">Unchained: 27 nodes</td></tr>
+<tr><td>World rendering (3D scene)</td><td>Nothing — out of scope by definition</td><td>—</td><td class="num">Visible in every gameplay pair</td></tr>
+</tbody></table></div>
+<div class="callout info"><strong>A separate category: bugs in the conversion itself.</strong> Our visual checkpoints caught six real defects where the data was right but the mirror drew it wrong — an upside-down axis in UI Toolkit, trimmed sprites stretched, font sizes in the wrong units, IDs silently rounded by the JSON parser, a stretch rule ignored, and a mirror that lagged five seconds behind. Every one showed 100% structural coverage while visibly wrong. That is why we insist on paired screenshots, not just node counts.</div>
+</section>
+
+<section id="results">
+<h2>Results on three games</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Measure</th><th>Smoke Break</th><th>Spurpunk</th><th>Unchained</th></tr></thead>
+<tbody>
+<tr><td>UI technology</td><td>uGUI + TMP</td><td>uGUI</td><td>UI Toolkit + uGUI</td></tr>
+<tr><td>Snapshots recorded</td><td class="num">1,544</td><td class="num">1,970</td><td class="num">1,997</td></tr>
+<tr><td>Distinct UI fingerprints</td><td class="num">208</td><td class="num">81</td><td class="num">121</td></tr>
+<tr><td>…of which held ≥ 0.5 s (real screens)</td><td class="num">6</td><td class="num">51</td><td class="num">7</td></tr>
+<tr><td>Screens the final run reached</td><td>main menu, settings, credits</td><td>splash, then map</td><td>title, dialogue, pause</td></tr>
+<tr><td>Structural coverage</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
+<tr><td>Geometry error (p95, % of screen)</td><td class="num">0.0000%</td><td class="num">0.0000%</td><td class="num">0.0000%</td></tr>
+<tr><td>Draw-order inversions</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+<tr><td>Fully reconstructed visible nodes</td><td class="num">91.7%</td><td class="num">15.8%</td><td class="num">62.7%</td></tr>
+<tr><td>Replay equals live (canonical hash)</td><td class="num">99.74%</td><td class="num">90.76%</td><td class="num">99.60%</td></tr>
+<tr><td>Replay structural mismatches</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+<tr><td>Mirror lag behind game (mean)</td><td class="num">17 ms</td><td class="num">149 ms</td><td class="num">160 ms</td></tr>
+<tr><td>Overall</td><td><span class="pill warn">usable, partial</span></td><td><span class="pill warn">usable, partial</span></td><td><span class="pill warn">usable, partial</span></td></tr>
+</tbody></table></div>
+<p><strong>Distinct states are over-counted.</strong> A "fingerprint" changes whenever anything visible moves or its text changes, so frames of a scrolling credits roll or an animation each count as a new state. In Smoke Break 202 of 208 fingerprints appear in a single snapshot; about 6 are real screens. The final automated run did not reach gameplay in Smoke Break — see the auto-explorer section.</p>
+<p><strong>How to read this.</strong> Geometry, structure, visibility and order are exact everywhere. "Fully reconstructed" is strict — one unsupported property downgrades a node — so Spurpunk's 15.8% reflects a single custom material on most of its buttons, not misplaced buttons. The replay shortfalls are all timing: in live mode an image may not have arrived yet for the first frames that use it.</p>
+<p class="meta">Original game projects were verified byte-identical before and after (37,667 files, 0 changed). Source protection details: <code>status/source-protection.md</code>.</p>
+</section>
+
+<section id="bandwidth">
+<h2>Bandwidth: honest numbers</h2>
+<p>The prototype deliberately sends verbose full JSON snapshots, because they are easy to audit. That is expensive. We measured what a production encoding could achieve on the recorded sessions (about 150 samples per game, spread across each session):</p>
+<div class="table-wrap"><table>
+<thead><tr><th>At 15 snapshots/s</th><th>Smoke Break</th><th>Spurpunk</th><th>Unchained</th></tr></thead>
+<tbody>
+<tr><td>Full JSON (what the prototype sends)</td><td class="num">20.6 Mbit/s</td><td class="num">180 Mbit/s</td><td class="num">226 Mbit/s</td></tr>
+<tr><td>Full JSON, gzip</td><td class="num">2.65 Mbit/s</td><td class="num">11.9 Mbit/s</td><td class="num">10.3 Mbit/s</td></tr>
+<tr><td>Changed nodes only, gzip (estimate)</td><td class="num">0.18 Mbit/s</td><td class="num">0.10 Mbit/s</td><td class="num">0.04 Mbit/s</td></tr>
+<tr><td>Nodes unchanged frame to frame</td><td class="num">94.5%</td><td class="num">99.2%</td><td class="num">99.9%</td></tr>
+</tbody></table></div>
+<p>For scale, a 1080p game video stream is typically 10–30 Mbit/s. The prototype's raw format is <em>worse</em> than video. The delta estimate is two orders of magnitude better — but it is an offline calculation, excludes one-time image transfer, and has not been implemented or tested live.</p>
+</section>
+
+<section id="explorer">
+<h2>The UI auto-explorer — current state and weakness</h2>
+<p>To collect many UI states, something has to drive the game. Today that is a <strong>scripted sequence of clicks at fixed screen positions</strong> per game. It is blind: it does not look at the UI before clicking. On Spurpunk, the first script clicked on character artwork and never left the splash screen; we had to inspect screenshots and re-aim it. In the final measured runs, Spurpunk reached its map and Unchained reached in-game dialogue and the pause menu (its title screen and gameplay share one scene). Smoke Break stayed in its main-menu scene: an earlier run did reach gameplay, but a <em>Continue</em> button appeared partway through later sessions and the fixed-position click stopped reaching gameplay (not yet diagnosed).</p>
+<p>The sniffer already knows, every frame, which elements are interactive, where they are, and whether they are enabled. The natural next step is a <strong>semantic explorer</strong> that picks actions from that list, prefers unvisited states, deduplicates states by hash, and measures coverage against the static template list. The accompanying toy demo shows the difference between the two.</p>
+</section>
+
+<section id="next">
+<h2>Next steps</h2>
+<ol>
+  <li><strong>Semantic explorer</strong> driven by the sniffer's interactable list, with coverage measured against the static template superset.</li>
+  <li><strong>Delta + binary encoding</strong>, implemented and measured live against a video-stream baseline.</li>
+  <li><strong>Pixel-level fidelity metric</strong> (e.g. SSIM on UI-only regions) — the current gate proves geometry, not appearance.</li>
+  <li><strong>Input path back to the game</strong>: today the mirror is display-only; offloading needs clicks on the client to reach the game.</li>
+  <li><strong>Build-time visual extraction</strong>: convert shaders, UXML/USS and fonts where licensing allows into a neutral format, without running game code.</li>
+</ol>
+</section>
+
+<section id="qa">
+<h2>Hard questions an advisor should ask — and our answers</h2>
+
+<div class="qa"><p class="q">Isn't this just screen streaming with extra steps? Why not send pixels?</p>
+<div class="a"><p class="short">Pixels are the baseline we want to beat, not an alternative we ignored.</p><p>Pixels are opaque: the client cannot re-render text at its own resolution, read labels for accessibility, or respond locally. Sending structure makes those possible. Whether it is also cheaper is an open measurement (see bandwidth). We intentionally did not add video to the mirror, because it would have hidden reconstruction errors.</p></div></div>
+
+<div class="qa"><p class="q">Your full snapshots are up to 226 Mbit/s. That is far worse than video. How is this "offloading"?</p>
+<div class="a"><p class="short">Correct — the prototype format is not the deployment format.</p><p>Full JSON was chosen for auditability. On the same recordings, 94–99.9% of nodes do not change between frames; an estimated changed-nodes-only encoding is 0.04–0.18 Mbit/s. That number is an offline estimate, not a live result, and we present it as such.</p></div></div>
+
+<div class="qa"><p class="q">Geometry error is 0.0000%. Isn't that trivially true, since you copy the rectangle?</p>
+<div class="a"><p class="short">Yes, partly — and that is the point of the check.</p><p>It does not measure visual similarity. It measures that the <em>pipeline</em> — coordinate conversion, scaling, letterboxing, hierarchy, ordering, clipping — does not distort the captured geometry. That pipeline failed in six ways during development, all invisible to node counts. Appearance is measured separately (render coverage) and needs a pixel metric, which we list as future work.</p></div></div>
+
+<div class="qa"><p class="q">Render coverage is 15.8% on Spurpunk. So the mirror mostly does not look like the game?</p>
+<div class="a"><p class="short">Its buttons are in the right place with the right image, but lack a custom glow shader.</p><p>The metric is strict: one unsupported property marks the whole node partial. Spurpunk applies one custom material to 785 buttons, so almost every visible node is "partial". We report it rather than loosen the definition.</p></div></div>
+
+<div class="qa"><p class="q">You claim completeness. Complete with respect to what?</p>
+<div class="a"><p class="short">Per-snapshot capture and accounting — not state space.</p><p>We guarantee every node in a sampled frame is captured and every gap is recorded. We do not guarantee we reached every screen. We propose using the static template list as the denominator to measure that.</p></div></div>
+
+<div class="qa"><p class="q">If static analysis can find all UI templates, why do you need a runtime sniffer at all?</p>
+<div class="a"><p class="short">Templates are not states.</p><p>Static analysis knows a shop-row template exists; it does not know there are seven rows, what they say, which is scrolled into view, or where animation left them. That concrete state only exists at runtime.</p></div></div>
+
+<div class="qa"><p class="q">How does the auto-explorer work, and how do you know it explored enough?</p>
+<div class="a"><p class="short">Today it is a blind click script, and we do not know.</p><p>It clicks fixed positions per game and logs what it attempted. In the final measured runs it reached real screens — menus, settings, Spurpunk's map, and Unchained's in-game dialogue and pause menu — but it did <strong>not</strong> reach gameplay in Smoke Break, and it once got stuck on a splash screen. It has no coverage guarantee. A semantic explorer using the sniffer's own interactable list is the most important next step.</p></div></div>
+
+<div class="qa"><p class="q">"208 distinct UI states" — couldn't a ticking timer or an animation inflate that?</p>
+<div class="a"><p class="short">Yes — heavily.</p><p>In Smoke Break, 202 of 208 fingerprints occur in exactly one snapshot: frames of the scrolling credits and button animations. Only 6 are held for half a second or more. Rounding positions to 2 px is not enough. We should count states by the set of visible templates, ignoring moving positions and changing numbers, and report that instead. The per-state coverage figures the method calls for are also not computed yet.</p></div></div>
+
+<div class="qa"><p class="q">You compiled code into the game. That is not realistic for games you cannot rebuild.</p>
+<div class="a"><p class="short">Agreed; this requires cooperation from the developer.</p><p>The injected module is isolated in its own folder and assembly, and we verified it changes no original file. A deployment model would be an SDK the developer includes. Binary-only instrumentation is out of scope.</p></div></div>
+
+<div class="qa"><p class="q">The mirror is passive. How would a player actually use offloaded UI?</p>
+<div class="a"><p class="short">They cannot yet — the input path is not built.</p><p>We established the output direction first. Routing a click on a mirrored button back to the matching game element (by node ID) is the next architectural piece.</p></div></div>
+
+<div class="qa"><p class="q">Only 34% of Spurpunk's snapshots were displayed live. You are losing data.</p>
+<div class="a"><p class="short">Deliberately dropping stale frames, not losing data.</p><p>Snapshots are complete, so an old queued one carries nothing the newest does not. Without dropping them the mirror fell 5 seconds behind. Every snapshot is still recorded and replayed; the dropped count is reported.</p></div></div>
+
+<div class="qa"><p class="q">Why is replay only 90.76% equivalent to live on Spurpunk?</p>
+<div class="a"><p class="short">Image arrival timing, and nothing structural.</p><p>Every mismatch is a frame where, live, an image had not arrived yet, while replay preloads all images. Geometry, hierarchy, visibility, order and clipping agreed on every comparable frame.</p></div></div>
+
+<div class="qa"><p class="q">A mirror lag of about 150 ms is too slow for games.</p>
+<div class="a"><p class="short">For this prototype, yes; the cost is identified.</p><p>Most of it is parsing a 1.8 MB JSON document (about 62 ms on Unchained). A binary delta format removes most of that. The sniffer's own capture cost is 5–45 ms per sample, on a background-safe path.</p></div></div>
+
+<div class="qa"><p class="q">Three student games, all Unity 2022.3. Does this generalise?</p>
+<div class="a"><p class="short">Not proven.</p><p>They do cover both Unity UI systems, a scriptable render pipeline and third-party UI extensions. Other engines, commercial games and custom UI frameworks are untested.</p></div></div>
+
+<div class="qa"><p class="q">Fonts are never transported, so text never matches. Is that acceptable?</p>
+<div class="a"><p class="short">For measuring structure, yes; for a product, no.</p><p>We avoided copying licensed fonts. The string, size, colour and alignment are exact; glyph shapes and line wrapping are not. Options include rendering text to images on the source or shipping fonts the developer licenses for this.</p></div></div>
+
+<div class="qa"><p class="q">What is the research contribution, as opposed to engineering?</p>
+<div class="a"><p class="short">A measured answer to "how much of a game's UI survives being sent as structure, and why the rest does not".</p><p>That includes a passive capture method, a way to separate capture, accounting and state completeness, and a taxonomy of fidelity loss backed by counts on real games. The offloading benefit itself — bandwidth, latency, accessibility — is not yet demonstrated.</p></div></div>
+</section>
+
+<footer>
+  Workspace: <code>benchmark_workspace/</code>. Per-game reports: <code>games/&lt;id&gt;/report.md</code>. Full summary: <code>status/summary.md</code>. Design decisions: <code>status/decisions.md</code>. Bandwidth estimates computed from <code>sessions/final-03/snapshots.jsonl</code>; delta figures are offline estimates.
+</footer>
+</div>
